@@ -1,0 +1,9 @@
+GEOELEKTRIK TOOLS
+===========================================================================================================
+
+convert2gaf:
+-----------------------------------------------------------------------------------------------------------
+Dies Python Skript wandelt die RES2DINV-Dateien von dem "index-based" Format ins "general array" Format um.
+Unterstützt werden zur Zeit Wenner (alpha), Dipol-Dipol und Schlumberger auslagen. Vgl.:
+http://www.landviser.net/content/formatting-array-input-data-file-res2dinv-surface-electrodes-any-geometry
+
