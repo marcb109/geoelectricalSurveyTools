@@ -18,4 +18,4 @@ class TestWholeScript(unittest.TestCase):
             os.remove(self.output_file_name)
         except FileNotFoundError: pass
         convertmod2vtk(self.output_file_name, self.input_file_mod)
-        self.assertTrue(filecmp.cmp(self.output_file_correct_result, self.output_file_name))
+        self.assertTrue(filecmp.cmp(self.output_file_correct_result, self.output_file_name), msg='Result of convertmod2vtk is different different from expected result!')
