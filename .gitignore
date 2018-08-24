@@ -1,0 +1,10 @@
+
+\.idea/
+
+*.mod
+
+*.ohm
+
+*.vtk
+
+venv/
