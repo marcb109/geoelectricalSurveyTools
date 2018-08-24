@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 from sys import argv as sys_argv
 from sys import exit as sys_exit
