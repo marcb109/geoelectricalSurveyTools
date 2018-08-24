@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
+import os
 from sys import argv as sys_argv
 from sys import exit as sys_exit
-import os
+
 import numpy as np
 
 
@@ -30,7 +31,7 @@ class Point3D:
 
 def convert(startpoint, endpoint, numpoints, spacing):
     """
-
+    Convert relative coordinates to UTM coordinates
     :param spacing: Abstand zwischen den Elektroden (z.B. 2, 4) (m)
     :type spacing:
     :param startpoint: Koordinaten der ersten Elektrode in UTM (m)
@@ -52,21 +53,21 @@ def convert(startpoint, endpoint, numpoints, spacing):
         int_coord[x_old[j]] = (x_interpolated[j], y_interpolated[j])
     distance_x = x_interpolated[0] - x_interpolated[1]
     distance_y = y_interpolated[0] - y_interpolated[1]
-    int_coord[-spacing] = [int_coord[0][0] -distance_x, int_coord[0][1] - distance_y]
-    int_coord[(numpoints)*spacing] = [int_coord[(numpoints-1)*spacing][0] - distance_x, int_coord[(numpoints-1)*spacing][1] - distance_y]
-
+    int_coord[-spacing] = [int_coord[0][0] - distance_x, int_coord[0][1] - distance_y]
+    int_coord[numpoints*spacing] = [int_coord[(numpoints - 1) * spacing][0] - distance_x,
+                                    int_coord[(numpoints - 1) * spacing][1] - distance_y]
     return int_coord
 
-def convertmod2vtk(out_file, inp_file, ohm_file=None):
 
+def convertmod2vtk(out_file, inp_file, ohm_file=None):
     # only use topography if ohm file is given
     topography = ohm_file is not None
 
     # read mod file
-    inp = open(inp_file,'r')
+    inp = open(inp_file, 'r')
     lines = inp.readlines()
     inp.close()
-    del lines[0] # delete header line (#x1/m	x2/m	z1/m	z2/m	rho/Ohmm coverage)
+    del lines[0]  # delete header line (#x1/m	x2/m	z1/m	z2/m	rho/Ohmm coverage)
     x = []
     z = []
     rho = []
@@ -74,9 +75,9 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
     for line in lines:
         tmp = line.split()
         # x holds x1 x2 pair of coordinates
-        x.append([float(tmp[0]),float(tmp[1])]) ###?
+        x.append([float(tmp[0]), float(tmp[1])])
         # z holds z1 z2 pair of coordinates
-        z.append([-float(tmp[2]),-float(tmp[3])])
+        z.append([-float(tmp[2]), -float(tmp[3])])
         # measured specific resistivity
         rho.append(float(tmp[4]))
         # coverage is how often a block was targeted during measurement. Higher coverage -> more confident result
@@ -84,7 +85,7 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
 
     # read ohm file
     if topography:
-        ohm = open(ohm_file,'r')
+        ohm = open(ohm_file, 'r')
         lines = ohm.readlines()
         ohm.close()
         index = lines.index('# x h for each topo point\r\n')
@@ -94,9 +95,9 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         z_topo = []
         for line in lines:
             tmp = line.split()
-            x_topo.append(float(tmp[0])) ###
-            z_topo.append(float(tmp[1])) ###
-        topo = dict(zip(x_topo,z_topo))
+            x_topo.append(float(tmp[0]))
+            z_topo.append(float(tmp[1]))
+        topo = dict(zip(x_topo, z_topo))
 
     # some calculations
     num_cells = len(rho)
@@ -111,7 +112,7 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
                 try:
                     index = points.index(point)
                     cell.append(index)
-                except:
+                except ValueError:
                     points.append(point)
                     cell.append(len(points)-1)
         index = cell[2]
@@ -119,7 +120,6 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         cell[3] = index
         cells.append(cell)
     num_points = len(points)
-
 
     if topography:
         for point in points:
@@ -140,23 +140,23 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         point.x, point.y = converted_points[point.x]
 
     # write VTK file
-    out = open(out_file,'w')
+    out = open(out_file, 'w')
     out.write('# vtk DataFile Version 3.0\n')
-    out.write(os.path.split(inp_file)[1]+'\n')
+    out.write(os.path.split(inp_file)[1] + '\n')
     out.write('ASCII\n')
 
     out.write('DATASET UNSTRUCTURED_GRID\n')
     out.write('POINTS {0:d} float\n'.format(num_points))
     for point in points:
-        out.write(' '.join(str(x) for x in point)+'\n')
-    out.write('CELLS {0:d} {1:d}\n'.format(num_cells,num_cells*5))
+        out.write(' '.join(str(x) for x in point) + '\n')
+    out.write('CELLS {0:d} {1:d}\n'.format(num_cells, num_cells * 5))
     for cell in cells:
-        out.write('4 '+' '.join(str(i) for i in cell)+'\n')
+        out.write('4 ' + ' '.join(str(i) for i in cell) + '\n')
     out.write('CELL_TYPES {0:d}\n'.format(num_cells))
     for cell in cells:
         out.write('9\n')
     out.write('\n')
-    out.write('CELL_DATA '+str(num_cells)+'\n')
+    out.write('CELL_DATA ' + str(num_cells) + '\n')
     out.write('SCALARS rho float 1\n')
     out.write('LOOKUP_TABLE default\n')
     for value in rho:
@@ -167,6 +167,7 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         out.write('{0}\n'.format(value))
     out.close()
 
+
 if __name__ == '__main__':
     try:
         out_file = sys_argv[1]
@@ -175,8 +176,9 @@ if __name__ == '__main__':
             ohm_file = sys_argv[3]
         else:
             ohm_file = None
-    except:
-        print("USAGE: \n  convertmod2vtk.py output_file input_file [ohm_file_for_topography] \n e.g. \n convertmod2vtk.py Wenner.vtk Wenner.mod Wenner.ohm\n\n")
+    except Exception:
+        print(
+            "USAGE: \n  convertmod2vtk.py output_file input_file [ohm_file_for_topography] \n e.g. \n convertmod2vtk.py Wenner.vtk Wenner.mod Wenner.ohm\n\n")
         sys_exit()
 
     convertmod2vtk(out_file, inp_file, ohm_file)
