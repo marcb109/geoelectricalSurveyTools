@@ -5,6 +5,29 @@ from sys import exit as sys_exit
 import os
 import numpy as np
 
+
+class Point3D:
+
+    def __init__(self, x, y, z):
+        """
+
+        :param x: first horizontal coordinate
+        :param y: second horizontal coordinate
+        :param z: vertical coordinate
+        """
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __iter__(self):
+        # make class iterable by returning x, then y then z coordinate
+        return iter((self.x, self.y, self.z))
+
+    def __eq__(self, other):
+        # Compare two points, return true if they have the same coordinates
+        return self.x == other.x and self.y == other.y and self.z == other.z
+
+
 def convert(startpoint, endpoint, numpoints, spacing):
     """
 
@@ -83,8 +106,8 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         cell = []
         for j in range(2):
             for k in range(2):
-                point = [x[i][j], 0.0, z[i][k]]
-
+                # second coordinate is y , which is the horizontal deviation perpendicular to the the straight profile
+                point = Point3D(x[i][j], 0.0, z[i][k])
                 try:
                     index = points.index(point)
                     cell.append(index)
@@ -100,11 +123,11 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
 
     if topography:
         for point in points:
-            if point[0] in topo:
-                point[2] += topo[point[0]]
+            if point.x in topo:
+                point.z += topo[point.x]
             else:
                 #use nearest topography point
-                point[2] += topo[min(topo.keys(), key=lambda k: abs(k-point[0]))]
+                point.z += topo[min(topo.keys(), key=lambda k: abs(k-point.x))]
 
     startpoint = (356933, 5686395)
     endpoint = (357127, 5686380)
@@ -114,7 +137,7 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
     converted_points = convert(startpoint, endpoint, numpoints, spacing)
 
     for point in points:
-        point[0], point[1] = converted_points[point[0]]
+        point.x, point.y = converted_points[point.x]
 
     # write VTK file
     out = open(out_file,'w')
