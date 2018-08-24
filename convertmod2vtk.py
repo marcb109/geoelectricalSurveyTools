@@ -3,6 +3,37 @@
 from sys import argv as sys_argv
 from sys import exit as sys_exit
 import os
+import numpy as np
+
+def convert(startpoint, endpoint, numpoints, spacing):
+    """
+
+    :param spacing: Abstand zwischen den Elektroden (z.B. 2, 4) (m)
+    :type spacing:
+    :param startpoint: Koordinaten der ersten Elektrode in UTM (m)
+    :type startpoint:
+    :param endpoint: Koordinaten der letzten Elektrode in UTM (m)
+    :type endpoint:
+    :param numpoints:
+    :type numpoints: Anzahl der Elektroden
+    :return:
+    :rtype:
+    """
+    x_interpolated = np.linspace(startpoint[0], endpoint[0], numpoints)
+    y_interpolated = np.linspace(startpoint[1], endpoint[1], numpoints)
+    x_old = []
+    for i in range(numpoints):
+        x_old.append(float(i*spacing))
+    int_coord = {}
+    for j in range(numpoints):
+        int_coord[x_old[j]] = (x_interpolated[j], y_interpolated[j])
+    distance_x = x_interpolated[0] - x_interpolated[1]
+    distance_y = y_interpolated[0] - y_interpolated[1]
+    int_coord[-spacing] = [int_coord[0][0] -distance_x, int_coord[0][1] - distance_y]
+    int_coord[(numpoints)*spacing] = [int_coord[(numpoints-1)*spacing][0] - distance_x, int_coord[(numpoints-1)*spacing][1] - distance_y]
+
+    return int_coord
+
 
 try:
     out_file = sys_argv[1]
@@ -10,8 +41,10 @@ try:
     if len(sys_argv) > 3:
         ohm_file = sys_argv[3]
         topography = True
+    else:
+        topography = False
 except:
-    print "USAGE: \n  convertmod2vtk.py output_file input_file [ohm_file_for_topography] \n e.g. \n convertmod2vtk.py Wenner.vtk Wenner.mod Wenner.ohm\n\n"
+    print("USAGE: \n  convertmod2vtk.py output_file input_file [ohm_file_for_topography] \n e.g. \n convertmod2vtk.py Wenner.vtk Wenner.mod Wenner.ohm\n\n")
     sys_exit()
 
 # read mod file
@@ -25,9 +58,13 @@ rho = []
 coverage = []
 for line in lines:
     tmp = line.split()
-    x.append([float(tmp[0]),float(tmp[1])])
+    # x holds x1 x2 pair of coordinates
+    x.append([float(tmp[0]),float(tmp[1])]) ###?
+    # z holds z1 z2 pair of coordinates
     z.append([-float(tmp[2]),-float(tmp[3])])
+    # measured specific resistivity
     rho.append(float(tmp[4]))
+    # TODO what is this parameter?
     coverage.append(float(tmp[5]))
 
 # read ohm file
@@ -42,8 +79,8 @@ if topography:
     z_topo = []
     for line in lines:
         tmp = line.split()
-        x_topo.append(float(tmp[0]))
-        z_topo.append(float(tmp[1]))
+        x_topo.append(float(tmp[0])) ###
+        z_topo.append(float(tmp[1])) ###
     topo = dict(zip(x_topo,z_topo))
 
 # some calculations
@@ -54,7 +91,8 @@ for i in range(num_cells):
     cell = []
     for j in range(2):
         for k in range(2):
-            point = [x[i][j],0.0,z[i][k]]
+            point = [x[i][j], 0.0, z[i][k]]
+
             try:
                 index = points.index(point)
                 cell.append(index)
@@ -67,6 +105,7 @@ for i in range(num_cells):
     cells.append(cell)
 num_points = len(points)
 
+
 if topography:
     for point in points:
         if point[0] in topo:
@@ -74,6 +113,16 @@ if topography:
         else:
             #use nearest topography point
             point[2] += topo[min(topo.keys(), key=lambda k: abs(k-point[0]))]
+
+startpoint = (357028, 5686437)
+endpoint = (357126, 5686411)
+numpoints = 50
+spacing = 2
+
+converted_points = convert(startpoint, endpoint, numpoints, spacing)
+
+for point in points:
+    point[0], point[1] = converted_points[point[0]]
 
 # write VTK file
 out = open(out_file,'w')
