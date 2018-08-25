@@ -28,6 +28,8 @@ class Point3D:
         # Compare two points, return true if they have the same coordinates
         return self.x == other.x and self.y == other.y and self.z == other.z
 
+    def __sub__(self, other):
+        return Point3D(self.x-other.x, self.y-other.y, self.z-other.z)
 
 def convert(startpoint, endpoint, numpoints, spacing):
     """
@@ -57,6 +59,8 @@ def convert(startpoint, endpoint, numpoints, spacing):
     int_coord[numpoints*spacing] = [int_coord[(numpoints - 1) * spacing][0] - distance_x,
                                     int_coord[(numpoints - 1) * spacing][1] - distance_y]
     return int_coord
+    def __repr__(self):
+        return "Point3D({x}, {y}, {z})".format(x=self.x, y=self.y, z=self.z)
 
 
 def convertmod2vtk(out_file, inp_file, ohm_file=None):
