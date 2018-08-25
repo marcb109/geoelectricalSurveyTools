@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+from math import sqrt, atan2, cos, sin
 from sys import argv as sys_argv
 from sys import exit as sys_exit
 
@@ -31,36 +32,30 @@ class Point3D:
     def __sub__(self, other):
         return Point3D(self.x-other.x, self.y-other.y, self.z-other.z)
 
-def convert(startpoint, endpoint, numpoints, spacing):
-    """
-    Convert relative coordinates to UTM coordinates
-    :param spacing: Abstand zwischen den Elektroden (z.B. 2, 4) (m)
-    :type spacing:
-    :param startpoint: Koordinaten der ersten Elektrode in UTM (m)
-    :type startpoint:
-    :param endpoint: Koordinaten der letzten Elektrode in UTM (m)
-    :type endpoint:
-    :param numpoints:
-    :type numpoints: Anzahl der Elektroden
-    :return:
-    :rtype:
-    """
-    x_interpolated = np.linspace(startpoint[0], endpoint[0], numpoints)
-    y_interpolated = np.linspace(startpoint[1], endpoint[1], numpoints)
-    x_old = []
-    for i in range(numpoints):
-        x_old.append(float(i*spacing))
-    int_coord = {}
-    for j in range(numpoints):
-        int_coord[x_old[j]] = (x_interpolated[j], y_interpolated[j])
-    distance_x = x_interpolated[0] - x_interpolated[1]
-    distance_y = y_interpolated[0] - y_interpolated[1]
-    int_coord[-spacing] = [int_coord[0][0] - distance_x, int_coord[0][1] - distance_y]
-    int_coord[numpoints*spacing] = [int_coord[(numpoints - 1) * spacing][0] - distance_x,
-                                    int_coord[(numpoints - 1) * spacing][1] - distance_y]
-    return int_coord
     def __repr__(self):
         return "Point3D({x}, {y}, {z})".format(x=self.x, y=self.y, z=self.z)
+
+
+def convert_relative_to_utm(startpoint, endpoint, relative_distance):
+    """
+    Convert spacing along a line from startpoint to endpoint, which is measured relative to startpoint to UTM
+    coordinates.
+    :param startpoint: UTM coordinate (m) of start point
+    :type startpoint: Point3D
+    :param endpoint: UTM coordinate (m) of end point
+    :type endpoint: Point3D
+    :param relative_distance: Spacing from start point along the line to endpoint at which a new UTM coordinate
+    should be calculated
+    :type relative_distance: float
+    :return: UTM coordinate Point which is at the distance relative_distance from startpoint. New UTM coordinate is
+    interpolated.
+    :rtype: Point3D
+    """
+    connecting_vector = endpoint - startpoint
+    angle_radians = atan2(connecting_vector.y, connecting_vector.x)
+    dx = cos(angle_radians) * relative_distance
+    dy = sin(angle_radians) * relative_distance
+    return Point3D(startpoint.x + dx, startpoint.y + dy, startpoint.z)
 
 
 def convertmod2vtk(out_file, inp_file, ohm_file=None):
@@ -133,15 +128,13 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
                 #use nearest topography point
                 point.z += topo[min(topo.keys(), key=lambda k: abs(k-point.x))]
 
-    startpoint = (356933, 5686395)
-    endpoint = (357127, 5686380)
+    startpoint = Point3D(356933, 5686395, 0)
+    endpoint = Point3D(357127, 5686380, 0)
     numpoints = 50
     spacing = 4
 
-    converted_points = convert(startpoint, endpoint, numpoints, spacing)
-
     for point in points:
-        point.x, point.y = converted_points[point.x]
+        point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
 
     # write VTK file
     out = open(out_file, 'w')
