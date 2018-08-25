@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os
-from math import sqrt, atan2, cos, sin
+from math import atan2, cos, sin
 from sys import argv as sys_argv
 from sys import exit as sys_exit
-
-import numpy as np
 
 
 class Point3D:
