@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import argparse
 import os
 from math import sqrt, atan2, cos, sin
 from sys import argv as sys_argv
@@ -166,16 +166,10 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
 
 
 if __name__ == '__main__':
-    try:
-        out_file = sys_argv[1]
-        inp_file = sys_argv[2]
-        if len(sys_argv) > 3:
-            ohm_file = sys_argv[3]
-        else:
-            ohm_file = None
-    except Exception:
-        print(
-            "USAGE: \n  convertmod2vtk.py output_file input_file [ohm_file_for_topography] \n e.g. \n convertmod2vtk.py Wenner.vtk Wenner.mod Wenner.ohm\n\n")
-        sys_exit()
+    parser = argparse.ArgumentParser(description="Converts .mod to .vtk file")
+    parser.add_argument("output_vtk", help="Filename of .vtk file in which the results are saved.")
+    parser.add_argument("input_mod", help="Filename of .mod file from which inputs are read.")
+    parser.add_argument("input_ohm", nargs="?", default=None, help="Filename of .ohm file from which inputs are read. Optional, only used for topography.")
+    args = parser.parse_args()
 
-    convertmod2vtk(out_file, inp_file, ohm_file)
+    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm)
