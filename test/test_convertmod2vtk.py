@@ -11,7 +11,6 @@ class TestWholeScript(unittest.TestCase):
         self.input_file_mod = os.path.join(dir_path, "Profil1.mod")
         self.output_file_name = os.path.join(dir_path, "Profil1_Result.vtk")
         self.output_file_correct_result = os.path.join(dir_path, "Profil1_Richtiges_Ergebnis.vtk")
-        print(self.output_file_correct_result)
 
     def test_convertmod2vtk(self):
         # remove old results if they exist

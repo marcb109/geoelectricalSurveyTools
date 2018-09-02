@@ -2,8 +2,6 @@
 import argparse
 import os
 from math import atan2, cos, sin
-from sys import argv as sys_argv
-from sys import exit as sys_exit
 
 
 class Point3D:
