@@ -2,7 +2,7 @@
 import argparse
 import os
 from math import atan2, cos, sin
-
+import itertools
 
 class Point3D:
 
@@ -88,6 +88,38 @@ def read_ohm_file(ohm_filename):
     topo = dict(zip(x_topo, z_topo))
     return topo
 
+def create_geometry(x_coordinate_pair, z_coordinate_pair):
+    """
+    Create list of unique points and list of cells from those points
+    :param x_coordinate_pair: list of x1,x2 coordinate pairs
+    :type x_coordinate_pair: list of floats
+    :param z_coordinate_pair: list of z1,z2 coordinate pairs
+    :type z_coordinate_pair: list of floats
+    :return:
+    points: list of unique points built from all four combinations
+    cells: list of cells built by these points. A cell is a list that saves the indices of its edges in the points list.
+    """
+    points = []     # list of all unique points read from vtk file
+    cells = []      # list of lists, every sublists contains indices of points of a cell in points list
+    for x_pair, z_pair in zip(x_coordinate_pair, z_coordinate_pair):
+        cell = []   # list that holds the index of corner points of the cell
+        # loop over all x,z combinations
+        for x, z in itertools.product(x_pair, z_pair):
+            # second coordinate is y, which is the horizontal deviation perpendicular to the the straight profile
+            point = Point3D(x, 0.0, z)
+            try:
+                # successful if created point is already in list of points
+                index = points.index(point)
+            except ValueError:
+                # point is not in list of points, append it
+                index = len(points)
+                points.append(point)
+            cell.append(index)
+        # swap content of cell 2/3    WHY???
+        cell[2], cell[3] = cell[3], cell[2]
+        cells.append(cell)
+    return points, cells
+
 def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
     num_points = len(points)
     num_cells = len(cells)
@@ -124,43 +156,25 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
     # only use topography if ohm file is given
     topography = ohm_file is not None
 
-    x, z, rho, coverage = read_mod_file(inp_file)
+    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(inp_file)
 
     if topography:
         topo = read_ohm_file(ohm_file)
 
-    # some calculations
-    num_cells = len(rho)
-    points = []
-    cells = []
-    for i in range(num_cells):
-        cell = []
-        for j in range(2):
-            for k in range(2):
-                # second coordinate is y , which is the horizontal deviation perpendicular to the the straight profile
-                point = Point3D(x[i][j], 0.0, z[i][k])
-                try:
-                    index = points.index(point)
-                    cell.append(index)
-                except ValueError:
-                    points.append(point)
-                    cell.append(len(points)-1)
-        index = cell[2]
-        cell[2] = cell[3]
-        cell[3] = index
-        cells.append(cell)
+    # create list of grid cells from grid points
+    points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
 
     if topography:
         for point in points:
             if point.x in topo:
                 point.z += topo[point.x]
             else:
-                #use nearest topography point
+                # use nearest topography point
                 point.z += topo[min(topo.keys(), key=lambda k: abs(k-point.x))]
 
+    # convert relative coordinates to UTM
     startpoint = Point3D(356933, 5686395, 0)
     endpoint = Point3D(357127, 5686380, 0)
-
     for point in points:
         point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
 
