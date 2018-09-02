@@ -55,46 +55,81 @@ def convert_relative_to_utm(startpoint, endpoint, relative_distance):
     dy = sin(angle_radians) * relative_distance
     return Point3D(startpoint.x + dx, startpoint.y + dy, startpoint.z)
 
+def read_mod_file(mod_filename):
+    # read mod file
+    inp = open(mod_filename, 'r')
+    lines = inp.readlines()
+    inp.close()
+    del lines[0]  # delete header line (#x1/m	x2/m	z1/m	z2/m	rho/Ohmm coverage)
+
+    # convert list of strings to list of lists of float
+    lines = [[float(number) for number in line.split()] for line in lines]
+    # x holds x1 x2 pair of coordinates
+    x = [[line[0], line[1]] for line in lines]
+    # z holds z1 z2 pair of coordinates
+    z = [[-line[2], -line[3]] for line in lines]
+    # measured specific resistivity
+    rho = [line[4] for line in lines]
+    # coverage is how often a block was targeted during measurement. Higher coverage -> more confident result
+    coverage = [line[5] for line in lines]
+    return x, z, rho, coverage
+
+def read_ohm_file(ohm_filename):
+    # read ohm file
+    ohm = open(ohm_filename, 'r')
+    lines = ohm.readlines()
+    ohm.close()
+    # remove file all lines without data
+    index = lines.index('# x h for each topo point\r\n')
+    lines = lines[index+1:]
+    #num_topopoints = int(lines[index-1].split('#')[0])
+    # convert list of strings to list of lists of float
+    lines = [[float(number) for number in line.split()] for line in lines]
+    x_topo = [line[0] for line in lines]
+    z_topo = [line[1] for line in lines]
+    topo = dict(zip(x_topo, z_topo))
+    return topo
+
+def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
+    num_points = len(points)
+    num_cells = len(cells)
+    # write VTK file
+    with open(vtk_filename, 'w') as out:
+        # write header
+        out.write('# vtk DataFile Version 3.0\n')
+        out.write(input_filename + '\n')
+        out.write('ASCII\n')
+
+        out.write('DATASET UNSTRUCTURED_GRID\n')
+        out.write('POINTS {0:d} float\n'.format(num_points))
+        # write data
+        for point in points:
+            out.write(' '.join(str(x) for x in point) + '\n')
+        out.write('CELLS {0:d} {1:d}\n'.format(num_cells, num_cells * 5))
+        for cell in cells:
+            out.write('4 ' + ' '.join(str(i) for i in cell) + '\n')
+        out.write('CELL_TYPES {0:d}\n'.format(num_cells))
+        for cell in cells:
+            out.write('9\n')
+        out.write('\n')
+        out.write('CELL_DATA ' + str(num_cells) + '\n')
+        out.write('SCALARS rho float 1\n')
+        out.write('LOOKUP_TABLE default\n')
+        for value in rho:
+            out.write('{0}\n'.format(value))
+        out.write('SCALARS coverage float 1\n')
+        out.write('LOOKUP_TABLE default\n')
+        for value in coverage:
+            out.write('{0}\n'.format(value))
 
 def convertmod2vtk(out_file, inp_file, ohm_file=None):
     # only use topography if ohm file is given
     topography = ohm_file is not None
 
-    # read mod file
-    inp = open(inp_file, 'r')
-    lines = inp.readlines()
-    inp.close()
-    del lines[0]  # delete header line (#x1/m	x2/m	z1/m	z2/m	rho/Ohmm coverage)
-    x = []
-    z = []
-    rho = []
-    coverage = []
-    for line in lines:
-        tmp = line.split()
-        # x holds x1 x2 pair of coordinates
-        x.append([float(tmp[0]), float(tmp[1])])
-        # z holds z1 z2 pair of coordinates
-        z.append([-float(tmp[2]), -float(tmp[3])])
-        # measured specific resistivity
-        rho.append(float(tmp[4]))
-        # coverage is how often a block was targeted during measurement. Higher coverage -> more confident result
-        coverage.append(float(tmp[5]))
+    x, z, rho, coverage = read_mod_file(inp_file)
 
-    # read ohm file
     if topography:
-        ohm = open(ohm_file, 'r')
-        lines = ohm.readlines()
-        ohm.close()
-        index = lines.index('# x h for each topo point\r\n')
-        num_topopoints = int(lines[index-1].split('#')[0])
-        lines = lines[index+1:]
-        x_topo = []
-        z_topo = []
-        for line in lines:
-            tmp = line.split()
-            x_topo.append(float(tmp[0]))
-            z_topo.append(float(tmp[1]))
-        topo = dict(zip(x_topo, z_topo))
+        topo = read_ohm_file(ohm_file)
 
     # some calculations
     num_cells = len(rho)
@@ -116,7 +151,6 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
         cell[2] = cell[3]
         cell[3] = index
         cells.append(cell)
-    num_points = len(points)
 
     if topography:
         for point in points:
@@ -128,39 +162,11 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
 
     startpoint = Point3D(356933, 5686395, 0)
     endpoint = Point3D(357127, 5686380, 0)
-    numpoints = 50
-    spacing = 4
 
     for point in points:
         point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
 
-    # write VTK file
-    out = open(out_file, 'w')
-    out.write('# vtk DataFile Version 3.0\n')
-    out.write(os.path.split(inp_file)[1] + '\n')
-    out.write('ASCII\n')
-
-    out.write('DATASET UNSTRUCTURED_GRID\n')
-    out.write('POINTS {0:d} float\n'.format(num_points))
-    for point in points:
-        out.write(' '.join(str(x) for x in point) + '\n')
-    out.write('CELLS {0:d} {1:d}\n'.format(num_cells, num_cells * 5))
-    for cell in cells:
-        out.write('4 ' + ' '.join(str(i) for i in cell) + '\n')
-    out.write('CELL_TYPES {0:d}\n'.format(num_cells))
-    for cell in cells:
-        out.write('9\n')
-    out.write('\n')
-    out.write('CELL_DATA ' + str(num_cells) + '\n')
-    out.write('SCALARS rho float 1\n')
-    out.write('LOOKUP_TABLE default\n')
-    for value in rho:
-        out.write('{0}\n'.format(value))
-    out.write('SCALARS coverage float 1\n')
-    out.write('LOOKUP_TABLE default\n')
-    for value in coverage:
-        out.write('{0}\n'.format(value))
-    out.close()
+    write_vtk_file(out_file, os.path.split(inp_file)[1], points, cells, rho, coverage)
 
 
 if __name__ == '__main__':
