@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+
 import argparse
-import os
-from math import atan2, cos, sin
 import itertools
+import os
+from math import atan2, cos, sin, hypot
+
+from geotiffread_elevation import DEM_Model
+
 
 class Point3D:
 
@@ -31,6 +35,15 @@ class Point3D:
     def __repr__(self):
         return "Point3D({x}, {y}, {z})".format(x=self.x, y=self.y, z=self.z)
 
+def distance(point1, point2):
+    """
+    Return distance between point1 and point2 in xy plane
+    :type point1: Point3D
+    :type point2: Point3D
+    :rtype: float
+    """
+    connecting_vector = point1 - point2
+    return hypot(connecting_vector.x, connecting_vector.y)
 
 def convert_relative_to_utm(startpoint, endpoint, relative_distance):
     """
@@ -152,7 +165,7 @@ def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
         for value in coverage:
             out.write('{0}\n'.format(value))
 
-def convertmod2vtk(out_file, inp_file, ohm_file=None):
+def convertmod2vtk(out_file, inp_file, ohm_file=None, dem_file=None):
     # only use topography if ohm file is given
     topography = ohm_file is not None
 
@@ -178,14 +191,22 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None):
     for point in points:
         point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
 
+    # read elevation from dem model and set points z coordinate
+    if topography:
+        dem_model = DEM_Model(dem_file)
+        electrode_distance = distance(points[0], points[1])
+        for point in points:
+            point.z = dem_model.get_height((point.x, point.y), electrode_distance/2)
+
     write_vtk_file(out_file, os.path.split(inp_file)[1], points, cells, rho, coverage)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Converts .mod to .vtk file")
-    parser.add_argument("output_vtk", help="Filename of .vtk file in which the results are saved.")
-    parser.add_argument("input_mod", help="Filename of .mod file from which inputs are read.")
+    parser.add_argument("output_vtk", help="Filepath of .vtk file in which the results are saved.")
+    parser.add_argument("input_mod", help="Filepath of .mod file from which inputs are read.")
+    parser.add_argument("input_dem", help="Filepath of dem model used for elevation")
     parser.add_argument("input_ohm", nargs="?", default=None, help="Filename of .ohm file from which inputs are read. Optional, only used for topography.")
     args = parser.parse_args()
 
-    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm)
+    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm, args.input_dem)
