@@ -211,7 +211,7 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None, dem_file=None):
     write_vtk_file(out_file, os.path.split(inp_file)[1], points, cells, rho, coverage)
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description="Converts .mod to .vtk file")
     parser.add_argument("output_vtk", help="Filepath of .vtk file in which the results are saved.")
     parser.add_argument("input_mod", help="Filepath of .mod file from which inputs are read.")
@@ -222,3 +222,6 @@ if __name__ == '__main__':
 
     convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm,
                    args.input_dem)
+
+if __name__ == '__main__':
+    main()
