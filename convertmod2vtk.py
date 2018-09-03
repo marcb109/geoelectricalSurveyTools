@@ -30,10 +30,11 @@ class Point3D:
         return self.x == other.x and self.y == other.y and self.z == other.z
 
     def __sub__(self, other):
-        return Point3D(self.x-other.x, self.y-other.y, self.z-other.z)
+        return Point3D(self.x - other.x, self.y - other.y, self.z - other.z)
 
     def __repr__(self):
         return "Point3D({x}, {y}, {z})".format(x=self.x, y=self.y, z=self.z)
+
 
 def distance(point1, point2):
     """
@@ -44,6 +45,7 @@ def distance(point1, point2):
     """
     connecting_vector = point1 - point2
     return hypot(connecting_vector.x, connecting_vector.y)
+
 
 def convert_relative_to_utm(startpoint, endpoint, relative_distance):
     """
@@ -66,6 +68,7 @@ def convert_relative_to_utm(startpoint, endpoint, relative_distance):
     dy = sin(angle_radians) * relative_distance
     return Point3D(startpoint.x + dx, startpoint.y + dy, startpoint.z)
 
+
 def read_mod_file(mod_filename):
     # read mod file
     inp = open(mod_filename, 'r')
@@ -85,6 +88,7 @@ def read_mod_file(mod_filename):
     coverage = [line[5] for line in lines]
     return x, z, rho, coverage
 
+
 def read_ohm_file(ohm_filename):
     # read ohm file
     ohm = open(ohm_filename, 'r')
@@ -92,14 +96,15 @@ def read_ohm_file(ohm_filename):
     ohm.close()
     # remove file all lines without data
     index = lines.index('# x h for each topo point\r\n')
-    lines = lines[index+1:]
-    #num_topopoints = int(lines[index-1].split('#')[0])
+    lines = lines[index + 1:]
+    # num_topopoints = int(lines[index-1].split('#')[0])
     # convert list of strings to list of lists of float
     lines = [[float(number) for number in line.split()] for line in lines]
     x_topo = [line[0] for line in lines]
     z_topo = [line[1] for line in lines]
     topo = dict(zip(x_topo, z_topo))
     return topo
+
 
 def create_geometry(x_coordinate_pair, z_coordinate_pair):
     """
@@ -112,10 +117,10 @@ def create_geometry(x_coordinate_pair, z_coordinate_pair):
     points: list of unique points built from all four combinations
     cells: list of cells built by these points. A cell is a list that saves the indices of its edges in the points list.
     """
-    points = []     # list of all unique points read from vtk file
-    cells = []      # list of lists, every sublists contains indices of points of a cell in points list
+    points = []  # list of all unique points read from vtk file
+    cells = []  # list of lists, every sublists contains indices of points of a cell in points list
     for x_pair, z_pair in zip(x_coordinate_pair, z_coordinate_pair):
-        cell = []   # list that holds the index of corner points of the cell
+        cell = []  # list that holds the index of corner points of the cell
         # loop over all x,z combinations
         for x, z in itertools.product(x_pair, z_pair):
             # second coordinate is y, which is the horizontal deviation perpendicular to the the straight profile
@@ -132,6 +137,7 @@ def create_geometry(x_coordinate_pair, z_coordinate_pair):
         cell[2], cell[3] = cell[3], cell[2]
         cells.append(cell)
     return points, cells
+
 
 def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
     num_points = len(points)
@@ -165,11 +171,13 @@ def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
         for value in coverage:
             out.write('{0}\n'.format(value))
 
+
 def convertmod2vtk(out_file, inp_file, ohm_file=None, dem_file=None):
     # only use topography if ohm file is given
     topography = ohm_file is not None
 
-    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(inp_file)
+    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(
+        inp_file)
 
     if topography:
         topo = read_ohm_file(ohm_file)
@@ -183,13 +191,15 @@ def convertmod2vtk(out_file, inp_file, ohm_file=None, dem_file=None):
                 point.z += topo[point.x]
             else:
                 # use nearest topography point
-                point.z += topo[min(topo.keys(), key=lambda k: abs(k-point.x))]
+                point.z += topo[
+                    min(topo.keys(), key=lambda k: abs(k - point.x))]
 
     # convert relative coordinates to UTM
     startpoint = Point3D(356933, 5686395, 0)
     endpoint = Point3D(357127, 5686380, 0)
     for point in points:
-        point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
+        point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint,
+                                                      point.x)
 
     # read elevation from dem model and set points z coordinate
     if topography:
@@ -206,7 +216,9 @@ if __name__ == '__main__':
     parser.add_argument("output_vtk", help="Filepath of .vtk file in which the results are saved.")
     parser.add_argument("input_mod", help="Filepath of .mod file from which inputs are read.")
     parser.add_argument("input_dem", help="Filepath of dem model used for elevation")
-    parser.add_argument("input_ohm", nargs="?", default=None, help="Filename of .ohm file from which inputs are read. Optional, only used for topography.")
+    parser.add_argument("input_ohm", nargs="?", default=None,
+                        help="Filename of .ohm file from which inputs are read. Optional, only used for topography.")
     args = parser.parse_args()
 
-    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm, args.input_dem)
+    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm,
+                   args.input_dem)

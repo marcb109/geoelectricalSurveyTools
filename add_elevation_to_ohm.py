@@ -9,6 +9,21 @@ def create_model(dem_file):
     return dem_model
 
 def append_height_to_ohm(ohm_file, dem_model, start, end):
+    """
+    Take elevation from digital elevation model for the electrode coordinates
+    given in the ohm_file and save ohm file with coordinates
+    :param ohm_file: filepath to the ohm file to update with topography
+    :type ohm_file: str
+    :param dem_model: Digital elevation model from which elevation can be read
+    for arbitrary UTM coordinates
+    :type dem_model: DEM_Model
+    :param start: UTM Coordinate of start point of electrode array
+    (north, east)
+    :type start: tuple of floats
+    :param end: UTM coordinate of start point of electrode array
+    (north, east)
+    :type end: tuple of floats
+    """
     with open(ohm_file, 'r') as ohm:
         lines = ohm.readlines()
     num_electrodes = int(lines[0].split('#')[0])
