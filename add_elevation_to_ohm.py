@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 from geotiffread_elevation import DEM_Model
 from convertmod2vtk import convert_relative_to_utm, Point3D
