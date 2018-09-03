@@ -15,7 +15,7 @@ class DEM_Model:
         dataset_band = dataset.GetRasterBand(1)
         cols = dataset.RasterXSize
         rows = dataset.RasterYSize
-        print(rows, cols)
+        #print(rows, cols)
         data = dataset_band.ReadAsArray(0, 0, cols, rows)
         transform = dataset.GetGeoTransform()
         xOrigin_upperleft = transform[0]
