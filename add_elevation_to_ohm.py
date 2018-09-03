@@ -2,8 +2,13 @@ import argparse
 from geotiffread_elevation import DEM_Model
 from convertmod2vtk import convert_relative_to_utm, Point3D
 
+def create_model(dem_file):
+    print("Creating DEM Model")
+    dem_model = DEM_Model(dem_file)
+    print("DEM Model creation finished")
+    return dem_model
 
-def append_height_to_ohm(ohm_file, dem_file, start, end):
+def append_height_to_ohm(ohm_file, dem_model, start, end):
     with open(ohm_file, 'r') as ohm:
         lines = ohm.readlines()
     num_electrodes = int(lines[0].split('#')[0])
@@ -25,9 +30,6 @@ def append_height_to_ohm(ohm_file, dem_file, start, end):
     # convert relative coordinates to utm
     start = Point3D(*start, z=0)
     end = Point3D(*end, z=0)
-    print("Creating DEM Model")
-    dem_model = DEM_Model(dem_file)
-    print("DEM Model creation finished")
     electrode_distance = abs(values[0][0] - values[1][0])
     print("Getting elevation from DEM model")
     for value in values:
