@@ -49,11 +49,18 @@ def append_height_to_ohm(ohm_file, dem_model, start, end):
             ohm.write('{}\t{}\n'.format(*value_pair))
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input_ohm', help='Ohm file for which the elevation should be appended')
+    parser = argparse.ArgumentParser(description='Load topography from tif file and append topography to .ohm file')
     parser.add_argument('dem_file', help='DEM file to read for elevation data')
-    parser.add_argument('--start', nargs=2, type=float, help='north east coordinate of start point in utm')
-    parser.add_argument('--end', nargs=2, type=float, help='north east coordinate of end point in utm')
+    parser.add_argument('-i', '--input_ohm', nargs=5, action='append',
+                        help='Path to ohm file and UTM coordinates of start/end point'
+                             '/path/to/ohm/file.ohm start_utm_north start_utm_east end_utm_north end_utm_east')
     args = parser.parse_args()
     print(args)
-    append_height_to_ohm(args.input_ohm, args.dem_file, args.start, args.end)
+    model = create_model(args.dem_file)
+    for ohm_arguments in args.input_ohm:
+        # ohm_arguments is a list of the ohm file, then north east coordinate of start point,
+        # the north east coordinate of end point
+        start_point = [float(ohm_arguments[1]), float(ohm_arguments[2])]
+        end_point = [float(ohm_arguments[3]), float(ohm_arguments[4])]
+        print(ohm_arguments[0], start_point, end_point)
+        append_height_to_ohm(ohm_arguments[0], model, start_point, end_point)
