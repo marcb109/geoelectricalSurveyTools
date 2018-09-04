@@ -95,7 +95,7 @@ def read_ohm_file(ohm_filename):
     lines = ohm.readlines()
     ohm.close()
     # remove file all lines without data
-    index = lines.index('# x h for each topo point\r\n')
+    index = lines.index('# x h for each topo point\n')
     lines = lines[index + 1:]
     # num_topopoints = int(lines[index-1].split('#')[0])
     # convert list of strings to list of lists of float
@@ -171,42 +171,66 @@ def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
         for value in coverage:
             out.write('{0}\n'.format(value))
 
+def topography_from_dem(dem_file, points):
+    """Read elevation from model and modify z coordinate of every point"""
+    dem_model = DEM_Model(dem_file)
+    electrode_distance = distance(points[0], points[1])
+    for point in points:
+        point.z = dem_model.get_height((point.x, point.y),
+                                       electrode_distance / 2)
+    return points
 
-def convertmod2vtk(out_file, inp_file, ohm_file=None, dem_file=None):
-    # only use topography if ohm file is given
-    topography = ohm_file is not None
+def topography_from_ohm(ohm_file, points):
+    topo = read_ohm_file(ohm_file)
+    for point in points:
+        if point.x in topo:
+            point.z += topo[point.x]
+        else:
+            # use nearest topography point
+            point.z += topo[
+                min(topo.keys(), key=lambda k: abs(k - point.x))]
+    return points
 
+def get_file_ending(filepath):
+    return filepath.split(".")[-1]
+
+def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
+    """
+
+    :param out_file:
+    :type out_file:
+    :param inp_file:
+    :type inp_file:
+    :param topo_file: File from which topography should be read. Either a .tif
+    containing a dem model or an ohm file with topography
+    :type topo_file: str
+    :param dem_file:
+    :type dem_file:
+    :return:
+    :rtype:
+    """
     x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(
         inp_file)
-
-    if topography:
-        topo = read_ohm_file(ohm_file)
 
     # create list of grid cells from grid points
     points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
 
-    if topography:
-        for point in points:
-            if point.x in topo:
-                point.z += topo[point.x]
-            else:
-                # use nearest topography point
-                point.z += topo[
-                    min(topo.keys(), key=lambda k: abs(k - point.x))]
-
     # convert relative coordinates to UTM
-    startpoint = Point3D(356933, 5686395, 0)
-    endpoint = Point3D(357127, 5686380, 0)
+    start_point.append(0.0)
+    end_point.append(0.0)
+    startpoint = Point3D(*start_point)
+    endpoint = Point3D(*end_point)
     for point in points:
-        point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint,
-                                                      point.x)
+        point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
 
-    # read elevation from dem model and set points z coordinate
-    if topography:
-        dem_model = DEM_Model(dem_file)
-        electrode_distance = distance(points[0], points[1])
-        for point in points:
-            point.z = dem_model.get_height((point.x, point.y), electrode_distance/2)
+    # read elevation from dem model or ohm file and set points z coordinate
+    if topo_file is not None:
+        if get_file_ending(topo_file) == "tif":
+            points = topography_from_dem(topo_file, points)
+        elif get_file_ending(topo_file) == "ohm":
+            points = topography_from_ohm(topo_file, points)
+        else:
+            raise Exception("Wrong topography file given!")
 
     write_vtk_file(out_file, os.path.split(inp_file)[1], points, cells, rho, coverage)
 
@@ -215,13 +239,12 @@ def main():
     parser = argparse.ArgumentParser(description="Converts .mod to .vtk file")
     parser.add_argument("output_vtk", help="Filepath of .vtk file in which the results are saved.")
     parser.add_argument("input_mod", help="Filepath of .mod file from which inputs are read.")
-    parser.add_argument("input_dem", help="Filepath of dem model used for elevation")
-    parser.add_argument("input_ohm", nargs="?", default=None,
-                        help="Filename of .ohm file from which inputs are read. Optional, only used for topography.")
+    parser.add_argument("input_topo", help="Filepath of dem model or ohm file used for elevation")
+    parser.add_argument("start_point", nargs=2, type=float, help="UTM north east coordinate of start point")
+    parser.add_argument("end_point", nargs=2, type=float, help="UTM north east coordinate of end point")
     args = parser.parse_args()
 
-    convertmod2vtk(args.output_vtk, args.input_mod, args.input_ohm,
-                   args.input_dem)
+    convertmod2vtk(args.output_vtk, args.input_mod, args.start_point, args.end_point, args.input_topo)
 
 if __name__ == '__main__':
     main()
