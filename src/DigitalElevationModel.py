@@ -3,11 +3,20 @@ import numpy as np
 from operator import itemgetter
 from scipy import spatial
 
-class DEM_Model:
+"""
+The DEM class deals with a Geotif Digital Elevation Model. The model 
+is loaded from a filepath and then a KDTree is constructed. This efficient data
+structure allows querying for the closest points in O(log n) time. 
+The function get_height gets the height of a anywhere within the model by interpolating the 
+closest points.
+"""
+
+class DEM:
 
     def __init__(self, filepath):
         """
-        Open the digital elevation model given at filepath, read the coordinates and build a KDTree of coordinate/height
+        Open the digital elevation model given at filepath, read the coordinates
+        and build a KDTree of coordinate/height
         :param filepath:
         """
         dataset = gdal.Open(filepath)
@@ -38,10 +47,12 @@ class DEM_Model:
 
     def get_height(self, utm_coordinate, interpolation_distance):
         """
-        Find coordinates falling into each element of the box, take the average of the elevation of the coordinates
+        Find coordinates falling into each element of the box, take the average
+        of the elevation of the coordinates
         in one element and assign averaged elevation to that element
         :param utm_coordinate: tuple of utm coordinates (north, east)
-        :param interpolation_distance: distance around given coordinate in m to look for points
+        :param interpolation_distance: distance around given coordinate in m to
+        look for points
         :return: average elevation of points around the given coordinate
         """
         indices = self._kdtree.query_ball_point(utm_coordinate, interpolation_distance)

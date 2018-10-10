@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-from geotiffread_elevation import DEM_Model
+from src.DigitalElevationModel import DEM
 from convertmod2vtk import convert_relative_to_utm, Point3D
 
 def create_model(dem_file):
     print("Creating DEM Model")
-    dem_model = DEM_Model(dem_file)
+    dem_model = DEM(dem_file)
     print("DEM Model creation finished")
     return dem_model
 
@@ -18,7 +18,7 @@ def append_height_to_ohm(ohm_file, dem_model, start, end):
     :type ohm_file: str
     :param dem_model: Digital elevation model from which elevation can be read
     for arbitrary UTM coordinates
-    :type dem_model: DEM_Model
+    :type dem_model: DEM
     :param start: UTM Coordinate of start point of electrode array
     (north, east)
     :type start: tuple of floats

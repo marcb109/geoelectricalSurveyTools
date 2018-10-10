@@ -3,56 +3,12 @@
 import argparse
 import itertools
 import os
-from math import atan2, cos, sin, hypot
+from math import atan2, cos, sin
 
-from geotiffread_elevation import DEM_Model
-
-
-class Point3D:
-
-    def __init__(self, x, y, z):
-        """
-
-        :param x: first horizontal coordinate
-        :param y: second horizontal coordinate
-        :param z: vertical coordinate
-        """
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def get_horizontal_coordinate_pair(self):
-        """
-        Return horizontal coordinate pair as a list for functions that dont work with Point3D classes
-        :return: [x, y] coordinate
-        :rtype: list
-        """
-        return [self.x, self.y]
-
-    def __iter__(self):
-        # make class iterable by returning x, then y then z coordinate
-        return iter((self.x, self.y, self.z))
-
-    def __eq__(self, other):
-        # Compare two points, return true if they have the same coordinates
-        return self.x == other.x and self.y == other.y and self.z == other.z
-
-    def __sub__(self, other):
-        return Point3D(self.x - other.x, self.y - other.y, self.z - other.z)
-
-    def __repr__(self):
-        return "Point3D({x}, {y}, {z})".format(x=self.x, y=self.y, z=self.z)
-
-
-def distance(point1, point2):
-    """
-    Return distance between point1 and point2 in xy plane
-    :type point1: Point3D
-    :type point2: Point3D
-    :rtype: float
-    """
-    connecting_vector = point1 - point2
-    return hypot(connecting_vector.x, connecting_vector.y)
+from src.io.read import read_mod_file, topography_from_dem, topography_from_ohm
+from src.utils import get_file_ending
+from src.point import Point3D
+from src.io.write import write_vtk_file
 
 
 def convert_relative_to_utm(startpoint, endpoint, relative_distance):
@@ -76,43 +32,6 @@ def convert_relative_to_utm(startpoint, endpoint, relative_distance):
     dx = cos(angle_radians) * relative_distance
     dy = sin(angle_radians) * relative_distance
     return Point3D(startpoint.x + dx, startpoint.y + dy, startpoint.z)
-
-
-def read_mod_file(mod_filename):
-    # read mod file
-    inp = open(mod_filename, 'r')
-    lines = inp.readlines()
-    inp.close()
-    del lines[0]  # delete header line (#x1/m	x2/m	z1/m	z2/m	rho/Ohmm coverage)
-
-    # convert list of strings to list of lists of float
-    lines = [[float(number) for number in line.split()] for line in lines]
-    # x holds x1 x2 pair of coordinates
-    x = [[line[0], line[1]] for line in lines]
-    # z holds z1 z2 pair of coordinates
-    z = [[-line[2], -line[3]] for line in lines]
-    # measured specific resistivity
-    rho = [line[4] for line in lines]
-    # coverage is how often a block was targeted during measurement. Higher coverage -> more confident result
-    coverage = [line[5] for line in lines]
-    return x, z, rho, coverage
-
-
-def read_ohm_file(ohm_filename):
-    # read ohm file
-    ohm = open(ohm_filename, 'r')
-    lines = ohm.readlines()
-    ohm.close()
-    # remove file all lines without data
-    index = lines.index('# x h for each topo point\n')
-    lines = lines[index + 1:]
-    # num_topopoints = int(lines[index-1].split('#')[0])
-    # convert list of strings to list of lists of float
-    lines = [[float(number) for number in line.split()] for line in lines]
-    x_topo = [line[0] for line in lines]
-    z_topo = [line[1] for line in lines]
-    topo = dict(zip(x_topo, z_topo))
-    return topo
 
 
 def create_geometry(x_coordinate_pair, z_coordinate_pair):
@@ -148,110 +67,6 @@ def create_geometry(x_coordinate_pair, z_coordinate_pair):
     return points, cells
 
 
-def write_vtk_file(vtk_filename, input_filename, points, cells, rho, coverage):
-    num_points = len(points)
-    num_cells = len(cells)
-    # write VTK file
-    with open(vtk_filename, 'w') as out:
-        # write header
-        out.write('# vtk DataFile Version 3.0\n')
-        out.write(input_filename + '\n')
-        out.write('ASCII\n')
-
-        out.write('DATASET UNSTRUCTURED_GRID\n')
-        out.write('POINTS {0:d} float\n'.format(num_points))
-        # write data
-        for point in points:
-            out.write(' '.join(str(x) for x in point) + '\n')
-        out.write('CELLS {0:d} {1:d}\n'.format(num_cells, num_cells * 5))
-        for cell in cells:
-            out.write('4 ' + ' '.join(str(i) for i in cell) + '\n')
-        out.write('CELL_TYPES {0:d}\n'.format(num_cells))
-        for cell in cells:
-            out.write('9\n')
-        out.write('\n')
-        out.write('CELL_DATA ' + str(num_cells) + '\n')
-        out.write('SCALARS rho float 1\n')
-        out.write('LOOKUP_TABLE default\n')
-        for value in rho:
-            out.write('{0}\n'.format(value))
-        out.write('SCALARS coverage float 1\n')
-        out.write('LOOKUP_TABLE default\n')
-        for value in coverage:
-            out.write('{0}\n'.format(value))
-
-def write_vtk_file_general(vtk_filename, title, points, cells, values, value_descriptors):
-    """
-    General method to write an unstructured grid to a vtk file
-    :param vtk_filename: Filename with which to save .vtk file
-    :type vtk_filename: str
-    :param title: Title of vtk file, 256 characters maximum
-    :param points: list of points to save in vtk file
-    :type points: list
-    :param cells: list of cells to save in vtk file. A cell is defined by the indices of its
-    four vertices in the list of points
-    :type cells: list
-    :param values: list of lists of data. All lists will be save as their own data set
-    :type values: list
-    :param value_descriptors: list of data descriptors accompanying values such as 'rho float'.
-    Can be used to identify data sets in paraview.
-    :type value_descriptors: list of strings
-    :rtype: None
-    """
-    num_points = len(points)
-    num_cells = len(cells)
-    # write VTK file
-    with open(vtk_filename, 'w', newline='\n') as out:
-        # write header
-        out.write('# vtk DataFile Version 3.0\n')
-        out.write(title + '\n')
-        out.write('ASCII\n')
-
-        out.write('DATASET UNSTRUCTURED_GRID\n')
-        out.write('POINTS {0:d} float\n'.format(num_points))
-        # write data
-        for point in points:
-            out.write(' '.join(str(x) for x in point) + '\n')
-        out.write('CELLS {0:d} {1:d}\n'.format(num_cells, num_cells * 5))
-        for cell in cells:
-            out.write('4 ' + ' '.join(str(i) for i in cell) + '\n')
-        out.write('CELL_TYPES {0:d}\n'.format(num_cells))
-        for cell in cells:
-            out.write('9\n')
-        out.write('\n')
-        out.write('CELL_DATA ' + str(num_cells) + '\n')
-        for value_set, value_set_description in zip(values, value_descriptors):
-
-            out.write('SCALARS {} 1\n'.format(value_set_description))
-            out.write('LOOKUP_TABLE default\n')
-            for value in value_set:
-                out.write('{0}\n'.format(value))
-
-
-
-def topography_from_dem(dem_file, points):
-    """Read elevation from model and modify z coordinate of every point"""
-    dem_model = DEM_Model(dem_file)
-    electrode_distance = distance(points[0], points[1])
-    for point in points:
-        point.z = dem_model.get_height((point.x, point.y),
-                                       electrode_distance / 2)
-    return points
-
-def topography_from_ohm(ohm_file, points):
-    topo = read_ohm_file(ohm_file)
-    for point in points:
-        if point.x in topo:
-            point.z += topo[point.x]
-        else:
-            # use nearest topography point
-            point.z += topo[
-                min(topo.keys(), key=lambda k: abs(k - point.x))]
-    return points
-
-def get_file_ending(filepath):
-    return filepath.split(".")[-1]
-
 def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
     """
 
@@ -267,8 +82,7 @@ def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
     :return:
     :rtype:
     """
-    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(
-        inp_file)
+    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(inp_file)
 
     # create list of grid cells from grid points
     points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
@@ -303,10 +117,10 @@ def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Converts .mod to .vtk file")
-    parser.add_argument("output_vtk", help="Filepath of .vtk file in which the results are saved.")
-    parser.add_argument("input_mod", help="Filepath of .mod file from which inputs are read.")
-    parser.add_argument("input_topo", help="Filepath of dem model or ohm file used for elevation")
+    parser = argparse.ArgumentParser(description="Converts .mod to .vtk file, adding surface geometry.")
+    parser.add_argument("output_vtk", help="Filepath/filename of .vtk file in which the results are saved.")
+    parser.add_argument("input_mod", help="Filepath/filename of .mod file from which inputs are read.")
+    parser.add_argument("input_topo", help="Filepath/filename of dem model or ohm file used for elevation")
     parser.add_argument("start_point", nargs=2, type=float, help="UTM north east coordinate of start point")
     parser.add_argument("end_point", nargs=2, type=float, help="UTM north east coordinate of end point")
     args = parser.parse_args()
