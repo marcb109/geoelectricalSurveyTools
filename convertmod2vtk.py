@@ -87,15 +87,17 @@ def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
     # create list of grid cells from grid points
     points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
 
+    # convert coordinates from list to Point3D object
+    start_point.append(0.0)
+    end_point.append(0.0)
+    startpoint = Point3D(*start_point)
+    endpoint = Point3D(*end_point)
+
     # read elevation from dem model or ohm file and set points z coordinate
     if topo_file is not None:
         if get_file_ending(topo_file) == "tif":
             # tif file needs coordinates in utm, convert first
             # convert relative coordinates to UTM
-            start_point.append(0.0)
-            end_point.append(0.0)
-            startpoint = Point3D(*start_point)
-            endpoint = Point3D(*end_point)
             for point in points:
                 point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
                 # update elevation
@@ -104,10 +106,6 @@ def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
             # ohm file has elevation in relative coordinates, read topography first, then convert to UTM
             points = topography_from_ohm(topo_file, points)
             # convert relative coordinates to UTM
-            start_point.append(0.0)
-            end_point.append(0.0)
-            startpoint = Point3D(*start_point)
-            endpoint = Point3D(*end_point)
             for point in points:
                 point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
         else:
