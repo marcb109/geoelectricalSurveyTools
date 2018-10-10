@@ -70,17 +70,17 @@ def create_geometry(x_coordinate_pair, z_coordinate_pair):
 def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
     """
 
-    :param out_file:
-    :type out_file:
-    :param inp_file:
-    :type inp_file:
+    :param out_file: Filepath/filename of vtk file to write
+    :type out_file: str
+    :param inp_file: Filename/filepath of .mod file from which data is read
+    :type inp_file: str
+    :param end_point: coordinates of end point in UTM
+    :type end_point: list of two values, x and y/north and east coordinate
+    :param start_point: coordinates of start point in UTM
+    :type start_point: list of two values, x and y/north and east coordinate
     :param topo_file: File from which topography should be read. Either a .tif
     containing a dem model or an ohm file with topography
     :type topo_file: str
-    :param dem_file:
-    :type dem_file:
-    :return:
-    :rtype:
     """
     x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(inp_file)
 
