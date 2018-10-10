@@ -72,7 +72,7 @@ if __name__ == '__main__':
                         help='Path to ohm file and UTM coordinates of start/end point'
                              '/path/to/ohm/file.ohm start_utm_north start_utm_east end_utm_north end_utm_east')
     args = parser.parse_args()
-    print(args)
+    # TODO: print help w/o other arguments
     model = create_model(args.dem_file)
     for ohm_arguments in args.input_ohm:
         # ohm_arguments is a list of the ohm file, then north east coordinate of start point,
