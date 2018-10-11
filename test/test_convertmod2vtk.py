@@ -25,3 +25,6 @@ class TestWholeScript(unittest.TestCase):
         end = [357127, 5686380]
         convertmod2vtk(self.output_file_name, self.input_file_mod, start, end, self.topo_file)
         self.assertTrue(filecmp.cmp(self.output_file_correct_result, self.output_file_name), msg='Result of convertmod2vtk is different different from expected result!')
+
+if __name__ == '__main__':
+    unittest.main()
