@@ -1,8 +1,7 @@
 import os
 import unittest
-from convertmod2vtk import convertmod2vtk
 import filecmp
-from src.point import Point3D
+from convertmod2vtk import convertmod2vtk
 
 
 class TestWholeScript(unittest.TestCase):

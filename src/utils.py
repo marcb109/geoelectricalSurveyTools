@@ -4,6 +4,14 @@ from math import hypot
 
 
 def get_file_ending(filepath):
+    """
+    Return file extension,
+    eg. /home/john/test.txt -> 'txt'
+    :param filepath:
+    :type filepath:
+    :return:
+    :rtype: str
+    """
     return filepath.split(".")[-1]
 
 

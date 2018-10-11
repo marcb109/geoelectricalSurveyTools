@@ -1,126 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-import itertools
-import os
-from math import atan2, cos, sin
-
-from src.io.read import read_mod_file, topography_from_dem, topography_from_ohm
-from src.utils import get_file_ending
-from src.point import Point3D
-from src.io.write import write_vtk_file
-
-
-def convert_relative_to_utm(startpoint, endpoint, relative_distance):
-    """
-    Convert spacing along a line from startpoint to endpoint, which is measured relative to startpoint to UTM
-    coordinates.
-    :param startpoint: UTM coordinate (m) of start point
-    :type startpoint: Point3D
-    :param endpoint: UTM coordinate (m) of end point
-    :type endpoint: Point3D
-    :param relative_distance: Spacing from start point along the line to endpoint at which a new UTM coordinate
-    should be calculated
-    :type relative_distance: float
-    :return: UTM coordinate Point which is at the distance relative_distance from startpoint. New UTM coordinate is
-    interpolated.
-    :rtype: Point3D
-    """
-    # TODO benutze Geradengleichung
-    connecting_vector = endpoint - startpoint
-    angle_radians = atan2(connecting_vector.y, connecting_vector.x)
-    dx = cos(angle_radians) * relative_distance
-    dy = sin(angle_radians) * relative_distance
-    return Point3D(startpoint.x + dx, startpoint.y + dy, startpoint.z)
-
-
-def create_geometry(x_coordinate_pair, z_coordinate_pair):
-    """
-    Create list of unique points and list of cells from those points
-    :param x_coordinate_pair: list of x1,x2 coordinate pairs
-    :type x_coordinate_pair: list of floats
-    :param z_coordinate_pair: list of z1,z2 coordinate pairs
-    :type z_coordinate_pair: list of floats
-    :return:
-    points: list of unique points built from all four combinations
-    cells: list of cells built by these points. A cell is a list that saves the indices of its edges in the points list.
-    """
-    points = []  # list of all unique points read from vtk file
-    cells = []  # list of lists, every sublists contains indices of points of a cell in points list
-    for x_pair, z_pair in zip(x_coordinate_pair, z_coordinate_pair):
-        cell = []  # list that holds the index of corner points of the cell
-        # loop over all x,z combinations
-        for x, z in itertools.product(x_pair, z_pair):
-            # second coordinate is y, which is the horizontal deviation perpendicular to the the straight profile
-            point = Point3D(x, 0.0, z)
-            try:
-                # successful if created point is already in list of points
-                index = points.index(point)
-            except ValueError:
-                # point is not in list of points, append it
-                index = len(points)
-                points.append(point)
-            cell.append(index)
-        # swap content of cell 2/3    WHY???
-        cell[2], cell[3] = cell[3], cell[2]
-        cells.append(cell)
-    return points, cells
-
-
-def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
-    """
-
-    :param out_file: Filepath/filename of vtk file to write
-    :type out_file: str
-    :param inp_file: Filename/filepath of .mod file from which data is read
-    :type inp_file: str
-    :param end_point: coordinates of end point in UTM
-    :type end_point: list of two values, x and y/north and east coordinate
-    :param start_point: coordinates of start point in UTM
-    :type start_point: list of two values, x and y/north and east coordinate
-    :param topo_file: File from which topography should be read. Either a .tif
-    containing a dem model or an ohm file with topography
-    :type topo_file: str
-    """
-    x_coordinate_pair, z_coordinate_pair, rho, coverage = read_mod_file(inp_file)
-
-    # create list of grid cells from grid points
-    points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
-
-    # convert coordinates from list to Point3D object
-    start_point.append(0.0)
-    end_point.append(0.0)
-    startpoint = Point3D(*start_point)
-    endpoint = Point3D(*end_point)
-
-    # read elevation from dem model or ohm file and set points z coordinate
-    if topo_file is not None:
-        if get_file_ending(topo_file) == "tif":
-            # tif file needs coordinates in utm, convert first
-            # convert relative coordinates to UTM
-            for point in points:
-                point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
-                # update elevation
-            points = topography_from_dem(topo_file, points)
-        elif get_file_ending(topo_file) == "ohm":
-            # ohm file has elevation in relative coordinates, read topography first, then convert to UTM
-            points = topography_from_ohm(topo_file, points)
-            # convert relative coordinates to UTM
-            for point in points:
-                point.x, point.y, _ = convert_relative_to_utm(startpoint, endpoint, point.x)
-        else:
-            raise Exception("Wrong topography file given!")
-
-    write_vtk_file(out_file, os.path.split(inp_file)[1], points, cells, rho, coverage)
+import sys
+from src.conversion import convertmod2vtk
 
 
 def main():
     epilog_string = """\
-    Example call: convertmod2vtk.py Profil1.vtk Prodil1.mod Profil1.ohm 378455 5701392 378455 5701392
+    Example call: 
+    convertmod2vtk.py Profil1.vtk Prodil1.mod Profil1.ohm 378455 5701392 378455 5701392
         This would call the script to read topography from the ohm file and use a 
         start point of 378455 5701392 and an end point of 378455 5701392. Output is 
         saved to the Profil1.vtk file."""
-
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description="Converts .mod to .vtk file, adding surface geometry.",
@@ -130,13 +21,13 @@ def main():
     parser.add_argument("input_topo", help="Filepath/filename of dem model or ohm file used for elevation")
     parser.add_argument("start_point", nargs=2, type=float, help="UTM north east coordinate of start point of array")
     parser.add_argument("end_point", nargs=2, type=float, help="UTM north east coordinate of end point of array")
-    try:
+    if len(sys.argv) < 2:
+        # if no options were used, print help.
+        parser.print_help()
+        sys.exit(1)
+    else:
         args = parser.parse_args()
         convertmod2vtk(args.output_vtk, args.input_mod, args.start_point, args.end_point, args.input_topo)
-    except SystemExit as err:
-        # if no options were used, print help.
-        # Additional if check avoids double printing help whith -h flag
-        if err.code == 2: parser.print_help()
 
 
 if __name__ == '__main__':

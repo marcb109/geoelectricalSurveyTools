@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-from src.DigitalElevationModel import DEM
-from convertmod2vtk import convert_relative_to_utm, Point3D
+from geoelectricalSurveyTools.src.DigitalElevationModel import DEM
+from geoelectricalSurveyTools.src.point import Point3D
+from src.conversion import convert_relative_to_utm
+
 
 def create_model(dem_file):
     print("Creating DEM Model")
     dem_model = DEM(dem_file)
     print("DEM Model creation finished")
     return dem_model
+
 
 def append_height_to_ohm(ohm_file, dem_model, start, end):
     """
@@ -64,6 +67,7 @@ def append_height_to_ohm(ohm_file, dem_model, start, end):
         # append converted values to ohm file
         for value_pair in values:
             ohm.write('{}\t{}\n'.format(*value_pair))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Load topography from tif file and append topography to .ohm file')

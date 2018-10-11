@@ -1,7 +1,7 @@
 """Functions for reading data from files"""
 
-from src.DigitalElevationModel import DEM
-from src.utils import distance
+from geoelectricalSurveyTools.src.DigitalElevationModel import DEM
+from geoelectricalSurveyTools.src.utils import distance
 
 
 def read_mod_file(mod_filename):
@@ -39,24 +39,3 @@ def read_ohm_file(ohm_filename):
     z_topo = [line[1] for line in lines]
     topo = dict(zip(x_topo, z_topo))
     return topo
-
-
-def topography_from_dem(dem_file, points):
-    """Read elevation from model and modify z coordinate of every point"""
-    dem_model = DEM(dem_file)
-    electrode_distance = distance(points[0], points[1])
-    for point in points:
-        point.z = dem_model.get_height((point.x, point.y),
-                                       electrode_distance / 2)
-    return points
-
-def topography_from_ohm(ohm_file, points):
-    topo = read_ohm_file(ohm_file)
-    for point in points:
-        if point.x in topo:
-            point.z += topo[point.x]
-        else:
-            # use nearest topography point
-            point.z += topo[
-                min(topo.keys(), key=lambda k: abs(k - point.x))]
-    return points
