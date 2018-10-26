@@ -4,6 +4,56 @@ GEOELEKTRIK TOOLS
 convert2gaf:
 -----------------------------------------------------------------------------------------------------------
 Dies Python Skript wandelt die RES2DINV-Dateien von dem "index-based" Format ins "general array" Format um.
-Unterst�tzt werden zur Zeit Wenner (alpha), Dipol-Dipol und Schlumberger auslagen. Vgl.:
+Unterstützt werden zur Zeit Wenner (alpha), Dipol-Dipol und Schlumberger auslagen. Vgl.:
 http://www.landviser.net/content/formatting-array-input-data-file-res2dinv-surface-electrodes-any-geometry
 
+convertmod2vtk:
+-----------------------------------------------------------------------------------------------------------
+Dieses Python-Skript wandelt die Messergebnisse des GeoTom-Programms in vtk-Dateien um, die in ParaView dargestellt werden können.
+Zusätzlich ist es möglich, Topographie aus einem DEM oder einer .ohm-Datei einzulesen.
+
+```
+usage: convertmod2vtk.py [-h] [-t [INPUT_TOPO]] [-s START_POINT START_POINT]
+                         [-e END_POINT END_POINT]
+                         output_vtk input_mod
+
+Converts .mod to .vtk file, adding surface geometry.
+
+positional arguments:
+  output_vtk            Filepath/filename of .vtk file in which the results
+                        are saved.
+  input_mod             Filepath/filename of .mod file from which inputs are
+                        read.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t [INPUT_TOPO], --input_topo [INPUT_TOPO]
+                        Filepath/filename of dem model or ohm file used for
+                        elevation
+  -s START_POINT START_POINT, --start_point START_POINT START_POINT
+                        UTM north east coordinate of start point of array. If
+                        no start and end point is given, the relative
+                        coordinates from the .mod file will be kept.
+  -e END_POINT END_POINT, --end_point END_POINT END_POINT
+                        UTM north east coordinate of end point of array
+
+    Example calls: 
+	convertmod2vtk.py Profil1.vtk Profil1.mod
+        Just read data from Profil1.mod and save it in Profil1.vtk file. No topography is added. Relative coordinates are kept.
+
+    convertmod2vtk.py Profil1.vtk Profil1.mod -s 378455 5701392 -e 378455 5701392 -t Profil1.ohm
+        This would call the script to read topography from the ohm file and use a 
+        start point of 378455 5701392 and an end point of 378455 5701392. Output is 
+        saved to the Profil1.vtk file.
+
+    convertmod2vtk.py Profil1_Topo.vtk Profil1.mod -s 378455 5701392 -e 378455 5701392 -t model/DEM.tif
+        Same as above, but topography is read from Tif file containing a Digital Elevation Model
+```
+
+### Vorraussetzungen
+
+Bei Verwendung von Anaconda können alle benötigten Python-Module mit folgendem Befehl installiert werden:
+
+```bash
+conda env create --file bio-env.txt
+```
