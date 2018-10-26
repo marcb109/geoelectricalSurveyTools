@@ -52,6 +52,10 @@ def convertmod2vtk(out_file, inp_file, start_point, end_point, topo_file=None):
     points, cells = create_geometry(x_coordinate_pair, z_coordinate_pair)
 
     # convert coordinates from list to Point3D object
+    if start_point is None or end_point is None:
+        start_point = [x_coordinate_pair[0][1], 0.]
+        end_point = [x_coordinate_pair[-1][0], 0.]
+    # set height zo zero
     start_point.append(0.0)
     end_point.append(0.0)
     startpoint = Point3D(*start_point)
