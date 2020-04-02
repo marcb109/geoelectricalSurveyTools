@@ -1,0 +1,15 @@
+*.pyc
+
+.cache
+
+\.idea/
+
+*.mod
+
+*.ohm
+
+*.vtk
+
+venv/
+
+data/
